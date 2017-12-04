@@ -7,6 +7,7 @@ using System.Net;
 using System.IO;
 using System.IO.Compression;
 using System.Threading;
+using System.Diagnostics;
 
 namespace DivineUI_Updater
 {
@@ -16,6 +17,11 @@ namespace DivineUI_Updater
         /// Location of the text file that contains the most recent version.
         /// </summary>
         static string remoteLatestVersionFile = "https://raw.githubusercontent.com/dota2-divine-ui/divine-ui/master/version.txt";
+
+        /// <summary>
+        /// Location of the file that contains the GameInfo to install Divine UI.
+        /// </summary>
+        static string remoteGameInfo = "https://raw.githubusercontent.com/dota2-divine-ui/updater/master/data/gameinfo.gi";
 
         /// <summary>
         /// Location of the ZIP file that contains the latest version of Divine UI
@@ -161,6 +167,8 @@ namespace DivineUI_Updater
             Console.WriteLine("Send your comments and suggestions to: r/Dota2DivineUI");
             Console.WriteLine();
 
+            Process.Start("steam://rungameid/570");
+
             // Thanks!
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
@@ -205,6 +213,16 @@ namespace DivineUI_Updater
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        private static void InstallGameInfo()
+        {
+            // Download!
+            string gameInfoData = client.DownloadString(remoteGameInfo);
+            File.WriteAllText(currentDirectory + "/dota/gameinfo.gi", gameInfoData);
+        }
+
+        /// <summary>
         /// Extract the files and finish
         /// </summary>
         private static void ExtractAndFinish()
@@ -232,6 +250,9 @@ namespace DivineUI_Updater
                 MoveMasterFiles(masterFolder);
                 Directory.Delete(masterFolder, true);
             }
+
+            // 
+            InstallGameInfo();
 
             Console.WriteLine("Extraction completed!");
 
