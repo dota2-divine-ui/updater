@@ -1,0 +1,13 @@
+Divine Updater Installation
+
+Next, Divine Updater will be installed on your computer.
+Divine Updater will allow you to download, install and update Divine UI automatically.
+
+If it's your first time installing Divine UI:
+At the end of the installation, confirm that you want to run the program when you close the install wizard. Divine Updater will try to find the directory where Dota 2 is installed and proceed to install Divine UI.
+
+If you want to update Divine UI:
+Run Divine Updater, it will be on your desktop or searching in your applications. Divine Updater will be responsible for downloading the latest available update and installing it.
+
+Suggestions, problems, opinions:
+https://www.reddit.com/r/Dota2DivineUI/

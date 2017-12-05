@@ -8,6 +8,10 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading;
 using System.Diagnostics;
+using System.Reflection;
+using Microsoft.Win32;
+using KVLib;
+using ByteSizeLib;
 
 namespace DivineUI_Updater
 {
@@ -39,9 +43,14 @@ namespace DivineUI_Updater
         static string currentDirectory = Directory.GetCurrentDirectory();
 
         /// <summary>
+        /// 
+        /// </summary>
+        static string gameDirectory = currentDirectory;
+
+        /// <summary>
         /// Location of the installation directory
         /// </summary>
-        static string installDirectory = currentDirectory + "/dota_divine_ui";
+        static string installDirectory = gameDirectory + "\\dota_divine_ui";
 
         /// <summary>
         /// Current version
@@ -56,8 +65,8 @@ namespace DivineUI_Updater
         /// <summary>
         /// Location of the text file that contains the current version.
         /// </summary>
-        static string versionFilePath = installDirectory + "/version.txt";
-            
+        static string versionFilePath = installDirectory + "\\version.txt";
+
         /// <summary>
         /// Web Client, for download
         /// </summary>
@@ -74,8 +83,7 @@ namespace DivineUI_Updater
         static bool HasLatestVersion()
         {
             // We read the file that contains the current version
-            if (File.Exists(versionFilePath))
-            {
+            if ( File.Exists(versionFilePath) ) {
                 StreamReader stream = File.OpenText(versionFilePath);
                 currentVersion = stream.ReadLine();
             }
@@ -84,30 +92,124 @@ namespace DivineUI_Updater
             latestVersion = client.DownloadString(remoteLatestVersionFile);
 
             // Compare!
-            return (latestVersion == currentVersion);
+            return ( latestVersion == currentVersion );
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        static void Abort( string message = "" )
+        {
+            if ( message.Length == 0 ) {
+                Console.WriteLine();
+                Console.WriteLine(message);
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+
+            Environment.Exit(0);
+        }
+
+        static KeyValue FindChildren( KeyValue values, string keyName )
+        {
+            if ( !values.HasChildren ) {
+                return null;
+            }
+
+            for( int it = 0; it < values.Children.Count(); ++it ) {
+                KeyValue child = values.Children.ElementAt(it);
+
+                if ( child.Key == keyName ) {
+                    return child;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Try to find the route where Steam and Dota 2 are installed.
+        /// </summary>
+        /// <returns></returns>
+        static void FindGameDirectory()
+        {
+            // Look for the Steam installation path in the registry.
+            string steamDirectory = (string)Registry.GetValue("HKEY_CURRENT_USER\\Software\\Valve\\Steam", "SteamPath", null);
+
+            // So... you dont have it in the registry huh.
+            if ( steamDirectory == null || !Directory.Exists(steamDirectory) ) {
+                goto unableToObtain;
+            }
+
+            string configFile = steamDirectory + "/config/config.vdf";
+
+            // So... you dont have Steam Configuration file...
+            if ( !File.Exists(configFile) ) {
+                goto unableToObtain;
+            }
+
+            try {
+                // Read and Parse the Steam configuration file.
+                String configData = File.ReadAllText(configFile);
+                KeyValue values = KVParser.ParseKeyValueText(configData);
+
+                KeyValue software = FindChildren(values, "Software");
+                KeyValue valve = FindChildren(software, "Valve");
+                KeyValue steam = FindChildren(valve, "Steam");
+
+                KeyValue installFolder1 = FindChildren(steam, "BaseInstallFolder_1");
+                KeyValue installFolder2 = FindChildren(steam, "BaseInstallFolder_2");
+
+                // Try with 2 routes
+                string baseInstallFolder = installFolder1.GetString();
+                string baseInstallFolder2 = null;
+
+                if ( installFolder2 != null ) {
+                    baseInstallFolder2 = installFolder2.GetString();
+                }
+
+                if ( Directory.Exists(baseInstallFolder + "\\steamapps\\common\\dota 2 beta\\game") ) {
+                    gameDirectory = baseInstallFolder + "\\steamapps\\common\\dota 2 beta\\game";
+                }
+                else if ( baseInstallFolder2 != null && Directory.Exists(baseInstallFolder2 + "\\steamapps\\common\\dota 2 beta\\game") ) {
+                    gameDirectory = baseInstallFolder2 + "\\steamapps\\common\\dota 2 beta\\game";
+                }
+
+                goto setupPaths;
+            }
+            catch( Exception why ) {
+                goto unableToObtain;
+            }
+
+        unableToObtain:
+            Console.WriteLine("Unable to obtain the location of the Dota 2 folder. Checking if we are already in the /game/... folder");
+
+        setupPaths:
+            // ?
+            if ( !Directory.Exists(gameDirectory + "\\dota\\") ) {
+                Console.WriteLine();
+                Console.WriteLine("Oops!");
+                Abort("We have found the game's path, but apparently it does not contain the /dota/ folder. Is it damaged?");
+            }
+
+            installDirectory = gameDirectory + "\\dota_divine_ui";
+            versionFilePath = installDirectory + "\\version.txt";
         }
 
         /// <summary>
         /// Program entry
         /// </summary>
         /// <param name="args"></param>
-        static void Main(string[] args)
+        static void Main( string[] args )
         {
-            Console.Title = "Divine UI - Updater";
-
-            // 
-            if (!Directory.Exists(currentDirectory + "/dota/"))
-            {
-                Console.WriteLine("Oops!");
-                Console.WriteLine("To install or update Divine UI you need to move this Updater to the /game/ folder of Dota 2.");
-                Console.WriteLine();
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
-                return;
-            }
+            Console.Title = "Divine Updater";
 
             Console.WriteLine("---------------------------------");
-            Console.WriteLine("-- Divine UI - Updater");
+            Console.WriteLine("-- Divine Updater");
+            Console.WriteLine("---------------------------------");
+            Console.WriteLine("-- Version: {0}", FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).FileVersion);
             Console.WriteLine("---------------------------------");
             Console.WriteLine("-- Author:");
             Console.WriteLine("-- Iván Bravo (@Kolesias)");
@@ -116,44 +218,42 @@ namespace DivineUI_Updater
             Console.WriteLine("> Relax, you are doing fine.");
             Console.WriteLine();
 
+            // We try to find the game folder of Dota 2
+            FindGameDirectory();
+            Console.WriteLine("Game Directory: {0}", gameDirectory);
+
+            Console.WriteLine();
             Console.WriteLine("Checking if there is a new version...");
             Console.WriteLine();
 
             bool hasLatest = HasLatestVersion();
 
             // We have the latest version!
-            if (hasLatest)
-            {
-                Console.WriteLine("You have the latest version! (" + latestVersion + ") There's nothing to do :)");
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
-                return;
+            if ( hasLatest ) {
+                Console.WriteLine("You have the latest version! ({0}) There's nothing to do :)", latestVersion);
+                Abort();
             }
 
             // For me! I do not want my original folder to be deleted.
-            if ( Directory.Exists(installDirectory + "/.git/") )
-            {
-                installDirectory = currentDirectory + "/" + "dota_divine_ui_test";
+            if ( Directory.Exists(installDirectory + "\\.git\\") ) {
+                installDirectory = gameDirectory + "\\dota_divine_ui_test";
                 Console.WriteLine("GIT directory detected! Running in testing mode...");
                 Console.WriteLine();
             }
 
             Console.WriteLine("There is a new version!");
-            Console.WriteLine("Downloading the version " + latestVersion + "...");
+            Console.WriteLine("Downloading the version {0}...", latestVersion);
             Console.WriteLine();
 
             reset = new ManualResetEvent(false);
-            packageSavePath = currentDirectory + "/" + latestVersion + ".zip";
-            
-            if ( File.Exists(packageSavePath) )
-            {
+            packageSavePath = Path.GetTempPath() + "\\divine-ui-" + latestVersion + ".zip";
+
+            if ( File.Exists(packageSavePath) ) {
                 Console.WriteLine("The file of the latest version was found, omitting the download...");
-                Console.WriteLine("If there was a problem related to the Divine UI download, please delete the file manually.");
                 Console.WriteLine();
                 ExtractAndFinish();
             }
-            else
-            {
+            else {
                 // Start the download
                 client.DownloadProgressChanged += Client_DownloadProgressChanged;
                 client.DownloadFileCompleted += Client_DownloadFileCompleted;
@@ -167,32 +267,29 @@ namespace DivineUI_Updater
             Console.WriteLine("Send your comments and suggestions to: r/Dota2DivineUI");
             Console.WriteLine();
 
+            // Start Dota 2
             Process.Start("steam://rungameid/570");
 
             // Thanks!
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
+            Abort();
         }
 
         /// <summary>
         /// Move files and folders, from the folder generated by Github to the installation folder.
         /// </summary>
         /// <param name="folder"></param>
-        private static void MoveMasterFiles(string folder)
+        private static void MoveMasterFiles( string folder )
         {
             // Get the list of files and folders
             string[] files = Directory.GetFileSystemEntries(folder);
 
-            foreach (string file in files)
-            {
+            foreach ( string file in files ) {
                 // This is a directory
-                if ( Directory.Exists(file) )
-                {
+                if ( Directory.Exists(file) ) {
                     string destFolder = file.Replace("divine-ui-master", "");
 
                     // Make sure that the directory exists.
-                    if (!Directory.Exists(destFolder))
-                    {
+                    if ( !Directory.Exists(destFolder) ) {
                         Directory.CreateDirectory(destFolder);
                     }
 
@@ -202,7 +299,7 @@ namespace DivineUI_Updater
                 }
 
                 // This does not interest us
-                if (Path.GetFileName(file) == ".gitignore")
+                if ( Path.GetFileName(file) == ".gitignore" )
                     continue;
 
                 // Move!
@@ -219,7 +316,7 @@ namespace DivineUI_Updater
         {
             // Download!
             string gameInfoData = client.DownloadString(remoteGameInfo);
-            File.WriteAllText(currentDirectory + "/dota/gameinfo.gi", gameInfoData);
+            File.WriteAllText(gameDirectory + "\\dota\\gameinfo.gi", gameInfoData);
         }
 
         /// <summary>
@@ -229,24 +326,40 @@ namespace DivineUI_Updater
         {
             Console.WriteLine("Extracting the files...");
 
-            if (Directory.Exists(installDirectory))
-            {
+            if ( Directory.Exists(installDirectory) ) {
                 // Delete the folder of the current version
                 Directory.Delete(installDirectory, true);
             }
 
-            // Fresh directory
+            // Empty directory
             Directory.CreateDirectory(installDirectory);
 
-            // ZIP extraction...
-            ZipFile.ExtractToDirectory(packageSavePath, installDirectory);
+            try {
+                // ZIP extraction...
+                ZipFile.ExtractToDirectory(packageSavePath, installDirectory);
+            }
+            catch( Exception why ) {
+                Console.WriteLine();
+                Console.WriteLine("A problem occurred while trying to extract the ZIP file!");
+                Console.WriteLine(why.Message);
+                Console.WriteLine();
+                Console.WriteLine("Deleting the file and downloading it again...");
+
+                File.Delete(packageSavePath);
+                Thread.Sleep(3000);
+                Console.Clear();
+
+                string[] args = {};
+                Main(args);
+                
+                return;
+            }
 
             // Damn it Github!
-            string masterFolder = installDirectory + "/divine-ui-master/";
+            string masterFolder = installDirectory + "\\divine-ui-master";
 
             // We need to move the files...
-            if (Directory.Exists(masterFolder))
-            {
+            if ( Directory.Exists(masterFolder) ) {
                 MoveMasterFiles(masterFolder);
                 Directory.Delete(masterFolder, true);
             }
@@ -255,35 +368,37 @@ namespace DivineUI_Updater
             InstallGameInfo();
 
             Console.WriteLine("Extraction completed!");
+            Console.WriteLine();
 
             // The ZIP file no longer interests us.
-            //File.Delete(remoteSavePath);
+            File.Delete(packageSavePath);
 
             // Verify again
             bool hasLatest = HasLatestVersion();
 
-            if (hasLatest)
-            {
+            if ( hasLatest ) {
                 Console.WriteLine("Verified! You already have the latest version, enjoy it!");
             }
-            else
-            {
+            else {
                 Console.WriteLine("Oh no! We have not been able to verify that you have the latest version, it can be a problem of the Updater, check manually.");
             }
 
             reset.Set();
         }
 
-        private static void Client_DownloadFileCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
+        private static void Client_DownloadFileCompleted( object sender, System.ComponentModel.AsyncCompletedEventArgs e )
         {
             Console.WriteLine("Download completed!");
+            Console.WriteLine();
+            Console.WriteLine();
+
             ExtractAndFinish();
         }
 
-        private static void Client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        private static void Client_DownloadProgressChanged( object sender, DownloadProgressChangedEventArgs e )
         {
-            Console.Title = "Divine UI - Updater - " + e.ProgressPercentage + "%";
-            Console.Write("\r{0}%   ", e.ProgressPercentage);
+            Console.Title = "Divine Updater - " + e.ProgressPercentage + "%";
+            Console.Write("\rDownload Progress: {0}% ({1}/{2} MB)   ", e.ProgressPercentage, Math.Round(ByteSize.FromBytes(e.BytesReceived).MegaBytes, 1), Math.Round(ByteSize.FromBytes(e.TotalBytesToReceive).MegaBytes, 1));
         }
     }
 }
