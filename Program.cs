@@ -100,7 +100,7 @@ namespace DivineUI_Updater
         /// </summary>
         static void Abort( string message = "" )
         {
-            if ( message.Length == 0 ) {
+            if ( message.Length > 0 ) {
                 Console.WriteLine();
                 Console.WriteLine(message);
             }
@@ -140,6 +140,7 @@ namespace DivineUI_Updater
 
             // So... you dont have it in the registry huh.
             if ( steamDirectory == null || !Directory.Exists(steamDirectory) ) {
+                Console.WriteLine("The Steam installation path could not be found from the registry. Do you have Steam installed?");
                 goto unableToObtain;
             }
 
@@ -147,6 +148,7 @@ namespace DivineUI_Updater
 
             // So... you dont have Steam Configuration file...
             if ( !File.Exists(configFile) ) {
+                Console.WriteLine("The Steam installation path has been found, but the configuration file dont exist!");
                 goto unableToObtain;
             }
 
@@ -163,35 +165,48 @@ namespace DivineUI_Updater
                 KeyValue installFolder2 = FindChildren(steam, "BaseInstallFolder_2");
 
                 // Try with 2 routes
-                string baseInstallFolder = installFolder1.GetString();
+                string baseInstallFolder = null;
                 string baseInstallFolder2 = null;
+
+                if ( installFolder1 != null ) {
+                    baseInstallFolder = installFolder1.GetString();
+                }
 
                 if ( installFolder2 != null ) {
                     baseInstallFolder2 = installFolder2.GetString();
                 }
 
-                if ( Directory.Exists(baseInstallFolder + "\\steamapps\\common\\dota 2 beta\\game") ) {
-                    gameDirectory = baseInstallFolder + "\\steamapps\\common\\dota 2 beta\\game";
+                String gamePathExt = "\\steamapps\\common\\dota 2 beta\\game";
+
+                if ( baseInstallFolder != null && Directory.Exists(baseInstallFolder + gamePathExt) ) {
+                    gameDirectory = baseInstallFolder + gamePathExt;
                 }
-                else if ( baseInstallFolder2 != null && Directory.Exists(baseInstallFolder2 + "\\steamapps\\common\\dota 2 beta\\game") ) {
-                    gameDirectory = baseInstallFolder2 + "\\steamapps\\common\\dota 2 beta\\game";
+                else if ( baseInstallFolder2 != null && Directory.Exists(baseInstallFolder2 + gamePathExt) ) {
+                    gameDirectory = baseInstallFolder2 + gamePathExt;
+                }
+                else if ( Directory.Exists(steamDirectory + gamePathExt) ) {
+                    gameDirectory = steamDirectory + gamePathExt;
+                }
+                else {
+                    goto unableToObtain;
                 }
 
                 goto setupPaths;
             }
             catch( Exception why ) {
+                Console.WriteLine("There was a problem reading the Steam configuration file, please report the following message: " + why.Message);
                 goto unableToObtain;
             }
 
         unableToObtain:
-            Console.WriteLine("Unable to obtain the location of the Dota 2 folder. Checking if we are already in the /game/... folder");
+            Console.WriteLine("Unable to obtain the location of the Dota 2 folder. Checking if we are already in the /game/ folder...");
 
         setupPaths:
             // ?
             if ( !Directory.Exists(gameDirectory + "\\dota\\") ) {
                 Console.WriteLine();
-                Console.WriteLine("Oops!");
-                Abort("We have found the game's path, but apparently it does not contain the /dota/ folder. Is it damaged?");
+                Console.WriteLine(gameDirectory);
+                Abort("We are sorry but the Dota 2 installation folder could not be found. Try placing the Updater files in the /game/ folder of Dota 2.");
             }
 
             installDirectory = gameDirectory + "\\dota_divine_ui";
@@ -397,8 +412,17 @@ namespace DivineUI_Updater
 
         private static void Client_DownloadProgressChanged( object sender, DownloadProgressChangedEventArgs e )
         {
-            Console.Title = "Divine Updater - " + e.ProgressPercentage + "%";
-            Console.Write("\rDownload Progress: {0}% ({1}/{2} MB)   ", e.ProgressPercentage, Math.Round(ByteSize.FromBytes(e.BytesReceived).MegaBytes, 1), Math.Round(ByteSize.FromBytes(e.TotalBytesToReceive).MegaBytes, 1));
+            double MegaBytesReceived = Math.Round(ByteSize.FromBytes(e.BytesReceived).MegaBytes, 1);
+            double MegaBytesToReceive = Math.Round(ByteSize.FromBytes(e.TotalBytesToReceive).MegaBytes, 1);
+
+            if ( MegaBytesToReceive > 0 ) {
+                Console.Title = "Divine Updater - " + e.ProgressPercentage + "%";
+                Console.Write("\rDownload Progress: {0}% ({1}/{2} MB)   ", e.ProgressPercentage, MegaBytesReceived, MegaBytesToReceive);
+            }
+            else {
+                Console.Title = "Divine Updater - " + MegaBytesReceived + " MB";
+                Console.Write("\rDownload Progress: {0} MB   ", MegaBytesReceived);
+            }
         }
     }
 }
