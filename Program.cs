@@ -28,9 +28,18 @@ namespace DivineUI_Updater
         static string remoteGameInfo = "https://raw.githubusercontent.com/dota2-divine-ui/updater/master/data/gameinfo.gi";
 
         /// <summary>
-        /// Location of the ZIP file that contains the latest version of Divine UI
+        /// 
         /// </summary>
-        static string remotePackage = "https://github.com/dota2-divine-ui/divine-ui/archive/master.zip";
+        static string[] packages = {
+            "https://github.com/dota2-divine-ui/divine-ui/archive/",
+            "https://divineui.woots.xyz/releases/master.zip",
+            "https://github.com/dota2-divine-ui/divine-ui/archive/master.zip"
+        };
+
+        /// <summary>
+        /// 
+        /// </summary>
+        static int usePackage = 0;
 
         /// <summary>
         /// Location where we will save the ZIP of the latest version
@@ -233,6 +242,14 @@ namespace DivineUI_Updater
             Console.WriteLine("> Relax, you are doing fine.");
             Console.WriteLine();
 
+            foreach ( var process in Process.GetProcessesByName("vconsole2") ) {
+                process.Kill();
+            }
+
+            foreach ( var process in Process.GetProcessesByName("dota2") ) {
+                process.Kill();
+            }
+
             // We try to find the game folder of Dota 2
             FindGameDirectory();
             Console.WriteLine("Game Directory: {0}", gameDirectory);
@@ -260,23 +277,31 @@ namespace DivineUI_Updater
             Console.WriteLine("Downloading the version {0}...", latestVersion);
             Console.WriteLine();
 
+            String remotePackage = "";
+
+            if( usePackage == 0 ) {
+                remotePackage = packages[0] + latestVersion + ".zip";
+            }
+            else {
+                remotePackage = packages[usePackage];
+            }
+
             reset = new ManualResetEvent(false);
             packageSavePath = Path.GetTempPath() + "\\divine-ui-" + latestVersion + ".zip";
 
             if ( File.Exists(packageSavePath) ) {
-                Console.WriteLine("The file of the latest version was found, omitting the download...");
-                Console.WriteLine();
-                ExtractAndFinish();
+                File.Delete(packageSavePath);
             }
-            else {
-                // Start the download
-                client.DownloadProgressChanged += Client_DownloadProgressChanged;
-                client.DownloadFileCompleted += Client_DownloadFileCompleted;
-                client.DownloadFileAsync(new Uri(remotePackage), packageSavePath);
 
-                // Waiting...
-                reset.WaitOne();
-            }
+            Console.WriteLine("Mirror: {0}", remotePackage);
+
+            // Start the download
+            client.DownloadProgressChanged += Client_DownloadProgressChanged;
+            client.DownloadFileCompleted += Client_DownloadFileCompleted;
+            client.DownloadFileAsync(new Uri(remotePackage), packageSavePath);
+
+            // Waiting...
+            reset.WaitOne();
 
             Console.WriteLine();
             Console.WriteLine("Send your comments and suggestions to: r/Dota2DivineUI");
@@ -353,21 +378,31 @@ namespace DivineUI_Updater
                 // ZIP extraction...
                 ZipFile.ExtractToDirectory(packageSavePath, installDirectory);
             }
-            catch( Exception why ) {
+            catch ( Exception why ) {
+                Console.WriteLine();
                 Console.WriteLine();
                 Console.WriteLine("A problem occurred while trying to extract the ZIP file!");
                 Console.WriteLine(why.Message);
                 Console.WriteLine();
-                Console.WriteLine("Deleting the file and downloading it again...");
 
-                File.Delete(packageSavePath);
-                Thread.Sleep(3000);
-                Console.Clear();
+                if ( usePackage < (packages.Length-1) ) {
+                    usePackage++;
 
-                string[] args = {};
-                Main(args);
-                
-                return;
+                    Console.WriteLine("Trying to download the file from an alternative location ({0})...", usePackage);
+                    Thread.Sleep(5000);
+                    Console.Clear();
+
+                    string[] args = { };
+                    Main(args);
+                    return;
+                }
+                else {
+                    Console.WriteLine("> We are sorry! But we could not install Divine UI");
+                    Console.WriteLine("> Try running the Updater with administrator permissions or disable any program that may interfere with the download (Antivirus, firewall)");
+                    Console.WriteLine("> If all else fails, please proceed with the manual installation:");
+                    Console.WriteLine("> https://redd.it/7hi2vc");
+                    Abort();
+                }
             }
 
             // Damn it Github!

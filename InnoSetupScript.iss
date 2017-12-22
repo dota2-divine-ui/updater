@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Divine Updater"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.2.0"
 #define MyAppPublisher "Woots"
 #define MyAppExeName "DivineUpdater.exe"
 
@@ -13,30 +13,31 @@
 AppId={{661CABF4-AA15-453C-A7B3-FCD7DD5A532B}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-;AppVerName={#MyAppName} {#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-InfoBeforeFile=C:\Users\Kolesias\Documents\Visual Studio 2017\Projects\DivineUI_Updater\Before.txt
+InfoBeforeFile=Before.txt
 OutputBaseFilename=SetupDivineUpdater
-SetupIconFile=C:\Users\Kolesias\Documents\Visual Studio 2017\Projects\DivineUI_Updater\favicon.ico
+SetupIconFile=favicon.ico
 Compression=lzma
 SolidCompression=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "C:\Users\Kolesias\Documents\Visual Studio 2017\Projects\DivineUI_Updater\bin\Release\DivineUpdater.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\Kolesias\Documents\Visual Studio 2017\Projects\DivineUI_Updater\bin\Release\ByteSize.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\Kolesias\Documents\Visual Studio 2017\Projects\DivineUI_Updater\bin\Release\KVLib.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\Kolesias\Documents\Visual Studio 2017\Projects\DivineUI_Updater\bin\Release\Sprache.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\Release\DivineUpdater.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\Release\ByteSize.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\Release\KVLib.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\Release\Sprache.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
